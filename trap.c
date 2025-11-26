@@ -32,6 +32,106 @@ idtinit(void)
   lidt(idt, sizeof(idt));
 }
 
+
+static void
+signalHandlerDefault(struct proc *p, int signum) {
+  switch(signum) {      
+    case SIGTERM:
+      p->killed = 1;
+      break;
+
+    case SIGKILL:
+      p->killed = 1;
+      break;
+      
+    case SIGVTALRM:
+      p->killed = 1;
+      break;
+    
+    case SIGINT:
+      p->killed = 1;
+      break;
+    
+    case SIGSTOP:
+      p->stopped = 1;
+      break;
+
+    case SIGCONT:
+      p->stopped = 0;
+      break;
+
+    case SIGSEGV:
+      p->killed = 1;
+      cprintf("Segmentation fault(core dumped): pid %d %s\n", p->pid, p->name);
+      break;
+
+    case SIGILL:
+      p->killed = 1;
+      cprintf("Illegal instruction: pid %d %s\n", p->pid, p->name);
+      break;
+    
+    case SIGUSR1:
+      // Default action is to ignore
+      break;
+
+    case SIGCHLD:
+      // Default action is to ignore
+      break;
+
+    default:
+      break;
+  }
+}
+
+void
+handle_signals(struct trapframe *tf) {
+  if(myproc() && myproc()->killed == 0 && (tf->cs&3) == DPL_USER){
+    struct proc *p = myproc();
+    // Check for pending signals
+    for(int i = 0; i < NSIGNALS; i++){
+      if(p->pending_signals[i]){
+        cprintf("Process %d handling signal %d\n", p->pid, i);
+        if(p->handlers[i] == SIG_DFL){
+          signalHandlerDefault(p, i);
+        } else if(p->handlers[i] != SIG_IGN){
+          *p->tf_backup = *tf;
+          
+          uint esp = tf->esp;
+          int arg = i;
+          int return_addr = (int)p->return_address; // Address of ulib.c wrapper
+
+          if(return_addr == 0)
+            return_addr = 0xFFFFFFFF;
+
+          // Push Argument
+          esp -= 4;
+          if(copyout(p->pgdir, esp, &arg, 4) < 0) { 
+              p->killed = 1; 
+              break; 
+          }
+
+          // Push Return Address
+          esp -= 4;
+          if(copyout(p->pgdir, esp, &return_addr, 4) < 0) { 
+              p->killed = 1; 
+              break; 
+          }
+
+          // Jump to Handler
+          tf->esp = esp;
+          tf->eip = (uint)p->handlers[i];
+          
+          // Clear pending
+          p->pending_signals[i] = 0;
+          p->in_signal_handler = 1;
+          break;
+        }
+        p->pending_signals[i] = 0;
+      }
+    }
+  }
+}
+
 //PAGEBREAK: 41
 void
 trap(struct trapframe *tf)
@@ -43,6 +143,7 @@ trap(struct trapframe *tf)
     syscall();
     if(myproc()->killed)
       exit();
+    handle_signals(tf);
     return;
   }
 
@@ -77,6 +178,17 @@ trap(struct trapframe *tf)
             cpuid(), tf->cs, tf->eip);
     lapiceoi();
     break;
+  case T_PGFLT: 
+    if(myproc() && (tf->cs&3) == DPL_USER){
+       // Map Hardware Trap 14 -> Software Signal SIGSEGV
+       myproc()->pending_signals[SIGSEGV] = 1;
+    } else {
+       // Kernel page fault (panic)
+       cprintf("unexpected trap %d from cpu %d eip %x (cr2=0x%x)\n",
+              tf->trapno, cpuid(), tf->eip, rcr2());
+       panic("trap");
+    }
+    break;
 
   //PAGEBREAK: 13
   default:
@@ -99,6 +211,8 @@ trap(struct trapframe *tf)
   // until it gets to the regular system call return.)
   if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
     exit();
+  
+  handle_signals(tf);
 
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.

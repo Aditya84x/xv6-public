@@ -1,3 +1,5 @@
+#include "signal.h"
+
 struct stat;
 struct rtcdate;
 
@@ -9,7 +11,7 @@ int pipe(int*);
 int write(int, const void*, int);
 int read(int, void*, int);
 int close(int);
-int kill(int);
+int kill(int, int);
 int exec(char*, char**);
 int open(const char*, int);
 int mknod(const char*, short, short);
@@ -23,6 +25,8 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+sighandler_t setsighandler(int signum, sighandler_t handler, void (*sigreturn_addr)(void));
+int sigreturn(void);
 
 // ulib.c
 int stat(const char*, struct stat*);
@@ -37,3 +41,5 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
+sighandler_t signal(int signum, sighandler_t handler);
+void sigret(void);

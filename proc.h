@@ -1,3 +1,4 @@
+#include "signal.h"
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -46,9 +47,15 @@ struct proc {
   struct context *context;     // swtch() here to run process
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
+  int stopped;                  // If non-zero, process is stopped
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  sighandler_t handlers[NSIGNALS]; // signal handlers
+  sighandler_t return_address; // address of sigreturn function
+  uint pending_signals[NSIGNALS]; // bitmask array for pending signals
+  struct trapframe *tf_backup;   // backup of original trapframe
+  uint in_signal_handler;   // flag to indicate if process is in a signal handler
 };
 
 // Process memory is laid out contiguously, low addresses first:

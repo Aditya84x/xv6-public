@@ -11,7 +11,30 @@ main(int argc, char **argv)
     printf(2, "usage: kill pid...\n");
     exit();
   }
-  for(i=1; i<argc; i++)
-    kill(atoi(argv[i]));
+  
+  char *p = argv[1];
+  if(p[0] == '-') {
+    if(argc < 3){
+      printf(2, "usage: kill -signum pid...\n");
+      exit();
+    }
+
+    p++;
+    int signum = atoi(p);
+    for(int i = 2; i < argc; i++){
+      int pid = atoi(argv[i]);
+      if(kill(pid, signum) < 0){
+        printf(2, "kill: failed to send signal %d to %d\n", signum, pid);
+      }
+    }
+  } else {
+    for(i = 1; i < argc; i++){
+      int pid = atoi(argv[i]);
+      if(kill(pid, SIGTERM) < 0){
+        printf(2, "kill: failed to kill %d\n", pid);
+      }
+    }
+  }
+
   exit();
 }

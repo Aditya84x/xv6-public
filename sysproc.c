@@ -30,10 +30,18 @@ int
 sys_kill(void)
 {
   int pid;
+  int signum;
 
   if(argint(0, &pid) < 0)
     return -1;
-  return kill(pid);
+
+  if(argint(1, &signum) < 0)
+    return -1;
+  
+  if(signum < 0 || signum >= NSIGNALS)
+    return -1;
+  
+  return kill(pid, signum);
 }
 
 int
@@ -88,4 +96,44 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+int
+sys_setsighandler(void) {
+  int signum;
+  sighandler_t handler;
+  sighandler_t old_handler;
+  sighandler_t sigreturn_addr;
+  struct proc *currproc = myproc();
+  if(argint(0, &signum) < 0) { // this gives value of signum
+    return -1;
+  }
+  if(argint(1, (int*)&handler) < 0) { // this gives value of handler function pointer
+    return -1;
+  }
+  if(argint(2, (int*)&sigreturn_addr) < 0) { // this gives value of sigreturn function pointer
+    return -1;
+  }
+
+  currproc->return_address = sigreturn_addr;
+
+  if(signum < 0 || signum >= NSIGNALS || signum == SIGKILL || signum == SIGSTOP) {
+    return -1;
+  }
+
+  old_handler = currproc->handlers[signum];
+  currproc->handlers[signum] = handler;
+  return (int)old_handler;
+}
+
+int
+sys_sigreturn(void) {
+  struct proc *curproc = myproc();
+  if(curproc == 0) {
+    return -1;
+  }
+  // Restore the original trapframe
+  *curproc->tf = *curproc->tf_backup;
+  curproc->in_signal_handler = 0;
+  return 0;
 }

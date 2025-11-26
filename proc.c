@@ -98,6 +98,13 @@ found:
   }
   sp = p->kstack + KSTACKSIZE;
 
+  if((p->tf_backup = (struct trapframe*)kalloc()) == 0) {
+    kfree(p->kstack);
+    p->kstack = 0;
+    p->state = UNUSED;
+    return 0;
+  }
+
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
@@ -111,6 +118,14 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+
+  p->stopped = 0;
+  p->in_signal_handler = 0;
+
+  for(int i = 0; i < NSIGNALS; i++) {
+    p->handlers[i] = SIG_DFL;
+    p->pending_signals[i] = 0;
+  }
 
   return p;
 }
@@ -193,6 +208,9 @@ fork(void)
   if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
+    if(np->tf_backup)
+      kfree((char*)np->tf_backup);
+    np->tf_backup = 0;
     np->state = UNUSED;
     return -1;
   }
@@ -211,6 +229,12 @@ fork(void)
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
+
+  for(i = 0; i < NSIGNALS; i++) {
+    np->handlers[i] = curproc->handlers[i];
+    np->pending_signals[i] = 0;
+  }
+  np->return_address = curproc->return_address;
 
   acquire(&ptable.lock);
 
@@ -289,6 +313,9 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
+        if(p->tf_backup)
+          kfree((char*)p->tf_backup);
+        p->tf_backup = 0;
         freevm(p->pgdir);
         p->pid = 0;
         p->parent = 0;
@@ -333,7 +360,7 @@ scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
+      if(p->state != RUNNABLE || p->stopped)
         continue;
 
       // Switch to chosen process.  It is the process's job
@@ -477,17 +504,18 @@ wakeup(void *chan)
 // Process won't exit until it returns
 // to user space (see trap in trap.c).
 int
-kill(int pid)
+kill(int pid, int signum)
 {
   struct proc *p;
 
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
-      p->killed = 1;
-      // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
+      p->pending_signals[signum] = 1;
+      // If the process is sleeping, wake it up to handle the signal
+      if(p->state == SLEEPING){
         p->state = RUNNABLE;
+      }
       release(&ptable.lock);
       return 0;
     }

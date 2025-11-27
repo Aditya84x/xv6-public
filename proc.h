@@ -1,4 +1,5 @@
 #include "signal.h"
+#include "x86.h"
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -54,7 +55,7 @@ struct proc {
   sighandler_t handlers[NSIGNALS]; // signal handlers
   sighandler_t return_address; // address of sigreturn function
   uint pending_signals[NSIGNALS]; // bitmask array for pending signals
-  struct trapframe *tf_backup;   // backup of original trapframe
+  struct trapframe tf_backup;   // backup of original trapframe
   uint in_signal_handler;   // flag to indicate if process is in a signal handler
 };
 

@@ -98,12 +98,12 @@ found:
   }
   sp = p->kstack + KSTACKSIZE;
 
-  if((p->tf_backup = (struct trapframe*)kalloc()) == 0) {
-    kfree(p->kstack);
-    p->kstack = 0;
-    p->state = UNUSED;
-    return 0;
-  }
+  // if((p->tf_backup = (struct trapframe*)kalloc()) == 0) {
+  //   kfree(p->kstack);
+  //   p->kstack = 0;
+  //   p->state = UNUSED;
+  //   return 0;
+  // }
 
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
@@ -208,9 +208,9 @@ fork(void)
   if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
-    if(np->tf_backup)
-      kfree((char*)np->tf_backup);
-    np->tf_backup = 0;
+    // if(np->tf_backup)
+    //   kfree((char*)np->tf_backup);
+    // np->tf_backup = 0;
     np->state = UNUSED;
     return -1;
   }
@@ -313,9 +313,9 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        if(p->tf_backup)
-          kfree((char*)p->tf_backup);
-        p->tf_backup = 0;
+        // if(p->tf_backup)
+        //   kfree((char*)p->tf_backup);
+        // p->tf_backup = 0;
         freevm(p->pgdir);
         p->pid = 0;
         p->parent = 0;
@@ -511,6 +511,12 @@ kill(int pid, int signum)
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
+      if(p->pid == 1 && (signum == SIGKILL || signum == SIGTERM)) {
+        cprintf("init process cannot be killed\n");
+        release(&ptable.lock);
+        return -1;
+      }
+
       p->pending_signals[signum] = 1;
       // If the process is sleeping, wake it up to handle the signal
       if(p->state == SLEEPING){

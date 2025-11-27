@@ -133,7 +133,8 @@ sys_sigreturn(void) {
     return -1;
   }
   // Restore the original trapframe
-  *curproc->tf = *curproc->tf_backup;
+  *curproc->tf = curproc->tf_backup;
   curproc->in_signal_handler = 0;
+  cprintf("Process %d: Returned from signal handler\n", curproc->pid);
   return 0;
 }

@@ -94,7 +94,7 @@ handle_signals(struct trapframe *tf) {
         if(p->handlers[i] == SIG_DFL){
           signalHandlerDefault(p, i);
         } else if(p->handlers[i] != SIG_IGN){
-          *p->tf_backup = *tf;
+          p->tf_backup = *tf;
           
           uint esp = tf->esp;
           int arg = i;
@@ -178,7 +178,8 @@ trap(struct trapframe *tf)
             cpuid(), tf->cs, tf->eip);
     lapiceoi();
     break;
-  case T_PGFLT: 
+  case T_PGFLT:
+    cprintf("Page fault at address 0x%x, eip 0x%x, esp 0x%x\n", rcr2(), tf->eip, tf->esp);
     if(myproc() && (tf->cs&3) == DPL_USER){
        // Map Hardware Trap 14 -> Software Signal SIGSEGV
        myproc()->pending_signals[SIGSEGV] = 1;

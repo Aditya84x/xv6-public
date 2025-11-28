@@ -151,3 +151,14 @@ sys_waitpid(void)
 
   return waitpid(pid, status);
 }
+
+int
+sys_alarm(void) {
+  int ticks;
+
+  if(argint(0, &ticks) < 0)
+    return -1;
+
+  myproc()->alarmticks = ticks;
+  return 0;
+}

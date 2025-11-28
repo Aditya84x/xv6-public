@@ -106,6 +106,7 @@ extern int sys_uptime(void);
 extern int sys_setsighandler(void);
 extern int sys_sigreturn(void);
 extern int sys_waitpid(void);
+extern int sys_alarm(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -132,6 +133,7 @@ static int (*syscalls[])(void) = {
 [SYS_setsighandler] sys_setsighandler,
 [SYS_sigreturn] sys_sigreturn,
 [SYS_waitpid] sys_waitpid,
+[SYS_alarm]   sys_alarm,
 };
 
 void

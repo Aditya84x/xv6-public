@@ -122,6 +122,7 @@ found:
   p->stopped = 0;
   p->report_stopped = 0;
   p->in_signal_handler = 0;
+  p->alarmticks = 0;
 
   for(int i = 0; i < NSIGNALS; i++) {
     p->handlers[i] = SIG_DFL;

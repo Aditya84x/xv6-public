@@ -157,6 +157,18 @@ trap(struct trapframe *tf)
       wakeup(&ticks);
       release(&tickslock);
     }
+
+    if(myproc() && myproc()->state == RUNNING) {
+        // If the timer is active (greater than 0)
+        if(myproc()->alarmticks > 0) {
+            myproc()->alarmticks--; // Decrement
+            
+            if(myproc()->alarmticks == 0) {
+                myproc()->pending_signals[SIGVTALRM] = 1;
+            }
+        }
+    }
+
     lapiceoi();
     break;
   case T_IRQ0 + IRQ_IDE:

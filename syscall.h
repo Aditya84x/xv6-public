@@ -22,3 +22,5 @@
 #define SYS_close  21
 #define SYS_setsighandler 22
 #define SYS_sigreturn 23
+#define SYS_pause 24
+#define SYS_sigprocmask 25

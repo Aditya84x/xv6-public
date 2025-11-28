@@ -57,6 +57,7 @@ struct proc {
   uint pending_signals[NSIGNALS]; // bitmask array for pending signals
   struct trapframe tf_backup;   // backup of original trapframe
   uint in_signal_handler;   // flag to indicate if process is in a signal handler
+  uint mask;              // signal masking for sigprocmask
 };
 
 // Process memory is laid out contiguously, low addresses first:

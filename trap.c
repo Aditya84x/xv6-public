@@ -54,6 +54,7 @@ signalHandlerDefault(struct proc *p, int signum) {
     
     case SIGSTOP:
       p->stopped = 1;
+      yield();
       break;
 
     case SIGCONT:
@@ -90,7 +91,10 @@ handle_signals(struct trapframe *tf) {
     // Check for pending signals
     for(int i = 0; i < NSIGNALS; i++){
       if(p->pending_signals[i]){
-        cprintf("Process %d handling signal %d\n", p->pid, i);
+        if((p->mask & (1 << i)) && (i != SIGKILL && i != SIGSTOP)) {
+          continue; //signal masked
+        }
+        // cprintf("Process %d handling signal %d\n", p->pid, i);
         if(p->handlers[i] == SIG_DFL){
           signalHandlerDefault(p, i);
         } else if(p->handlers[i] != SIG_IGN){
@@ -179,7 +183,7 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
-    cprintf("Page fault at address 0x%x, eip 0x%x, esp 0x%x\n", rcr2(), tf->eip, tf->esp);
+    // cprintf("Page fault at address 0x%x, eip 0x%x, esp 0x%x\n", rcr2(), tf->eip, tf->esp);
     if(myproc() && (tf->cs&3) == DPL_USER){
        // Map Hardware Trap 14 -> Software Signal SIGSEGV
        myproc()->pending_signals[SIGSEGV] = 1;

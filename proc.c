@@ -121,6 +121,7 @@ found:
 
   p->stopped = 0;
   p->in_signal_handler = 0;
+  p->mask = 0;
 
   for(int i = 0; i < NSIGNALS; i++) {
     p->handlers[i] = SIG_DFL;
@@ -229,7 +230,8 @@ fork(void)
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
-
+  np->mask = curproc->mask;
+  
   for(i = 0; i < NSIGNALS; i++) {
     np->handlers[i] = curproc->handlers[i];
     np->pending_signals[i] = 0;
@@ -511,13 +513,17 @@ kill(int pid, int signum)
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
-      if(p->pid == 1 && (signum == SIGKILL || signum == SIGTERM)) {
-        cprintf("init process cannot be killed\n");
+      if(p->pid == 1 ) {
+        cprintf("Operation not permitted!\n");
         release(&ptable.lock);
         return -1;
       }
 
       p->pending_signals[signum] = 1;
+
+      if(signum == SIGKILL) {
+        p->stopped = 0;
+      }
       // If the process is sleeping, wake it up to handle the signal
       if(p->state == SLEEPING){
         p->state = RUNNABLE;
@@ -565,4 +571,29 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+int 
+pause(void) {
+  struct proc *currproc = myproc();
+  int i = 0;
+  if(currproc == 0) {
+    return -1;
+  }
+  acquire(&ptable.lock);
+
+  int pending = 0;
+  for(i = 0; i < NSIGNALS; i++) {
+    if(currproc->pending_signals[i] == 1) {
+      pending = 1;
+      break;
+    }
+  }
+
+  if(pending == 0) {
+    sleep(currproc, &ptable.lock);
+  }
+  release(&ptable.lock);
+
+  return -1;
 }

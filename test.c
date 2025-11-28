@@ -4,7 +4,9 @@
 #include "user.h"
 
 void userHandler(int signum) {
-    printf(1, "User-defined handler called for SIGSEGV signal %d\n", signum);
+    int *p = (int*)0x80000000; // Invalid memory access to trigger SIGSEGV
+    int val = *p; // This should cause a segmentation fault
+    printf(1, "In user-defined signal handler for signal %d\n", signum);
 }
 
 int main(int argc, char **argv) {

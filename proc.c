@@ -120,6 +120,7 @@ found:
   p->context->eip = (uint)forkret;
 
   p->stopped = 0;
+  p->report_stopped = 0;
   p->in_signal_handler = 0;
 
   for(int i = 0; i < NSIGNALS; i++) {
@@ -272,6 +273,13 @@ exit(void)
   curproc->cwd = 0;
 
   acquire(&ptable.lock);
+
+  if(curproc->parent) {
+    curproc->parent->pending_signals[SIGCHLD] = 1;
+    if(curproc->parent->state == SLEEPING) {
+      curproc->parent->state = RUNNABLE;
+    }
+  }
 
   // Parent might be sleeping in wait().
   wakeup1(curproc->parent);
@@ -511,13 +519,21 @@ kill(int pid, int signum)
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
-      if(p->pid == 1 && (signum == SIGKILL || signum == SIGTERM)) {
-        cprintf("init process cannot be killed\n");
+      if(p->pid == 1){
+        cprintf("Operation not permitted!\n");
         release(&ptable.lock);
         return -1;
       }
 
       p->pending_signals[signum] = 1;
+
+      if(signum == SIGKILL || (signum == SIGTERM && p->handlers[signum] == SIG_DFL)) {
+        p->killed = 1;
+      } else if(signum == SIGCONT) {
+        p->stopped = 0;
+        p->report_stopped = 0;
+      }
+
       // If the process is sleeping, wake it up to handle the signal
       if(p->state == SLEEPING){
         p->state = RUNNABLE;
@@ -564,5 +580,65 @@ procdump(void)
         cprintf(" %p", pc[i]);
     }
     cprintf("\n");
+  }
+}
+
+int
+waitpid(int pid, int *status)
+{
+  struct proc *p;
+  int havekids;
+  struct proc *curproc = myproc();
+  
+  acquire(&ptable.lock);
+  for(;;){
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != curproc)
+        continue;
+
+      // Filter by PID (if pid != -1)
+      if(pid != -1 && p->pid != pid)
+        continue;
+
+      havekids = 1;
+
+      if(p->state == ZOMBIE){
+        int found = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        
+        if(status)
+          *status = 0; // 0 = EXITED
+        release(&ptable.lock);
+        return found;
+      }
+      
+      if(p->stopped && !p->report_stopped){
+          p->report_stopped = 1; // Mark as reported
+          
+          if(status)
+            *status = 1;  // 1 = STOPPED
+          
+          int found = p->pid;
+          release(&ptable.lock);
+          return found;
+      }
+    }
+
+    // No point waiting if we don't have children or are killed
+    if(!havekids || curproc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit/stop.
+    sleep(curproc, &ptable.lock);
   }
 }

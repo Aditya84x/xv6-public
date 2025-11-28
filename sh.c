@@ -141,6 +141,40 @@ getcmd(char *buf, int nbuf)
   return 0;
 }
 
+void bg(char *cmd) {
+  int pid = atoi(cmd);
+  if(pid < 0) {
+    printf(2, "bg: usage: bg pid\n");
+    return;
+  }
+
+  if(kill(pid, SIGCONT) < 0){
+    printf(2, "bg: failed to continue %d\n", pid);
+  }
+}
+
+void 
+fg(char *cmd) 
+{
+  int pid = atoi(cmd);
+  if(pid <= 0) {
+    printf(2, "fg: usage: fg <pid>\n");
+    return;
+  }
+  
+  if(kill(pid, SIGCONT) < 0){
+    printf(2, "fg: failed to continue %d\n", pid);
+    return;
+  }
+
+  int status;
+  waitpid(pid, &status);
+
+  if(status == 1) {
+      printf(1, "\n[%d] Stopped (Ctrl+Z)\n", pid);
+  }
+}
+
 int
 main(void)
 {
@@ -164,9 +198,29 @@ main(void)
         printf(2, "cannot cd %s\n", buf+3);
       continue;
     }
-    if(fork1() == 0)
+
+    if(buf[0] == 'b' && buf[1] == 'g' && buf[2] == ' '){
+      bg(buf + 3);
+      continue;
+    }
+
+    if(buf[0] == 'f' && buf[1] == 'g' && buf[2] == ' '){
+      fg(buf + 3);
+      continue;
+    }
+
+    int pid = fork1();
+    
+    if(pid == 0) {
       runcmd(parsecmd(buf));
-    wait();
+    } else {
+      int status;
+      waitpid(pid, &status);
+      
+      if(status == 1){
+          printf(1, "\n[%d] Stopped\n", pid);
+      }
+    }
   }
   exit();
 }

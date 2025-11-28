@@ -213,6 +213,16 @@ consoleintr(int (*getc)(void))
         consputc(BACKSPACE);
       }
       break;
+    case C('C'):
+      if(myproc() && myproc()->state == RUNNING) {
+        myproc()->pending_signals[SIGINT] = 1;
+      }
+      break;
+    case C('Z'):
+      if(myproc() && myproc()->state == RUNNING) {
+        myproc()->pending_signals[SIGSTOP] = 1;
+      }
+      break;
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
         c = (c == '\r') ? '\n' : c;

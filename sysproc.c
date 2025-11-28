@@ -135,6 +135,19 @@ sys_sigreturn(void) {
   // Restore the original trapframe
   *curproc->tf = curproc->tf_backup;
   curproc->in_signal_handler = 0;
-  cprintf("Process %d: Returned from signal handler\n", curproc->pid);
   return 0;
+}
+
+int
+sys_waitpid(void)
+{
+  int pid;
+  int *status;
+  
+  if(argint(0, &pid) < 0)
+    return -1;
+  if(argptr(1, (void*)&status, sizeof(int)) < 0)
+    status = 0;
+
+  return waitpid(pid, status);
 }

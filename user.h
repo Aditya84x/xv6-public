@@ -27,6 +27,7 @@ int sleep(int);
 int uptime(void);
 sighandler_t setsighandler(int signum, sighandler_t handler, void (*sigreturn_addr)(void));
 int sigreturn(void);
+int waitpid(int pid, int* status);
 
 // ulib.c
 int stat(const char*, struct stat*);

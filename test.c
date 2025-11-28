@@ -122,8 +122,8 @@ void test_sigkill() {
   printf(1, "SIGKILL Test passed.\n");
 }
 
-void test_sigill_sigsev_sigvtalrm() {
-  printf(1,"SIGILL, SIGSEGV, SIGVTALRM TEST\n");
+void test_sigill_sigsev() {
+  printf(1,"SIGILL, SIGSEGV TEST\n");
 
   signal(SIGILL, handler_ill);
   printf(1, "Sending SIGILL.\n");
@@ -140,12 +140,21 @@ void test_sigill_sigsev_sigvtalrm() {
   }
   wait(); //parent waits for child to die from segfault
 
-  signal(SIGVTALRM, handler_vtalrm);
-  printf(1, "Sending SIGVTALRM to self.\n");
-  kill(getpid(), SIGVTALRM);
-  sleep(10);
+  printf(1, "SIGILL, SIGSEGV test done.\n");
+}
 
-  printf(1, "SIGILL, SIGSEGV, SIGVTALRM test done.\n");
+void test_alarm() {
+  printf(1,"ALARM SYSCALL TEST (SIGVTALRM)\n");
+
+  signal(SIGVTALRM, handler_vtalrm);
+
+  printf(1, "Setting alarm for 10 ticks...\n");
+  alarm(10);
+
+  printf(1, "Sleeping to wait for alarm...\n");
+  sleep(20);
+
+  printf(1, "ALARM SYSCALL TEST FINISHED\n");
 }
 
 void test_sigchld() {
@@ -201,7 +210,8 @@ int main(int argc, char *argv[]) {
   test_sigkill();
   test_sigchld();
   test_sigstop_sigcont();
-  test_sigill_sigsev_sigvtalrm();
+  test_sigill_sigsev();
+  test_alarm();
   printf(1, "All signal tests completed.\n");
   printf(1,"OS was good!");
   exit();

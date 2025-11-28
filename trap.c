@@ -93,6 +93,10 @@ handle_signals(struct trapframe *tf) {
     // Check for pending signals
     for(int i = 0; i < NSIGNALS; i++){
       if(p->pending_signals[i]){
+        if((p->mask & (1 << i)) && (i != SIGKILL && i != SIGSTOP)) {
+          continue; //signal masked
+        }
+
         if(p->handlers[i] == SIG_DFL){
           signalHandlerDefault(p, i);
         } else if(p->handlers[i] != SIG_IGN){

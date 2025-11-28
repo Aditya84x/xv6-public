@@ -59,6 +59,7 @@ struct proc {
   struct trapframe tf_backup;   // backup of original trapframe
   uint in_signal_handler;   // flag to indicate if process is in a signal handler
   int alarmticks;             // ticks until alarm
+  uint mask;                  // signal mask
 };
 
 // Process memory is laid out contiguously, low addresses first:

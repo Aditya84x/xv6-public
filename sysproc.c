@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "signal.h"
 
 int
 sys_fork(void)
@@ -160,5 +161,50 @@ sys_alarm(void) {
     return -1;
 
   myproc()->alarmticks = ticks;
+  return 0;
+}
+
+int 
+sys_pause(void) {
+  return pause();
+}
+
+int 
+sys_sigprocmask(void) {
+  int how;
+  uint *set;
+  uint *oldset;
+  struct proc *currproc = myproc();
+
+  if(argint(0, &how) < 0) {
+    return -1;
+  }
+  if(argptr(1, (void*)&set, sizeof(uint)) < 0) {
+    return -1;
+  }
+  if(argptr(2, (void*)&oldset, sizeof(uint)) < 0) {
+    return -1;
+  }
+  if(oldset != 0) {
+    *oldset = currproc->mask;
+  }
+  if(set == 0) {
+    return 0; // no process to block or unblock
+  }
+  switch(how) {
+    case SIG_BLOCK:
+      currproc->mask |= *set;
+      break;
+    case SIG_UNBLOCK:
+      currproc->mask &= ~(*set);
+      break;
+    case SIG_SETMASK:
+      currproc->mask = *set;
+      break;
+    default:
+      return -1;
+  }
+  currproc->mask &= ~((1 << SIGKILL)); // sigkill can't be blocked
+  currproc->mask &= ~((1 << SIGSTOP)); // sigstop can't be blocked
   return 0;
 }

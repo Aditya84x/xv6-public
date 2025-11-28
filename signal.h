@@ -4,6 +4,10 @@ typedef void (*sighandler_t)(int);
 #define SIG_DFL (void (*)())0
 #define SIG_IGN (void (*)())1
 
+#define SIG_BLOCK 0
+#define SIG_UNBLOCK 1
+#define SIG_SETMASK 2
+
 #define SIGINT    2   
 #define SIGILL    4   
 #define SIGKILL   9   // Kill (cannot be caught or ignored)

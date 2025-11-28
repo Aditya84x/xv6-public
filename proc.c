@@ -123,6 +123,7 @@ found:
   p->report_stopped = 0;
   p->in_signal_handler = 0;
   p->alarmticks = 0;
+  p->mask = 0;
 
   for(int i = 0; i < NSIGNALS; i++) {
     p->handlers[i] = SIG_DFL;
@@ -231,6 +232,7 @@ fork(void)
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
+  np->mask = curproc->mask;
 
   for(i = 0; i < NSIGNALS; i++) {
     np->handlers[i] = curproc->handlers[i];
@@ -642,4 +644,29 @@ waitpid(int pid, int *status)
     // Wait for children to exit/stop.
     sleep(curproc, &ptable.lock);
   }
+}
+
+int 
+pause(void) {
+  struct proc *currproc = myproc();
+  int i = 0;
+  if(currproc == 0) {
+    return -1;
+  }
+  acquire(&ptable.lock);
+
+  int pending = 0;
+  for(i = 0; i < NSIGNALS; i++) {
+    if(currproc->pending_signals[i] == 1) {
+      pending = 1;
+      break;
+    }
+  }
+
+  if(pending == 0) {
+    sleep(currproc, &ptable.lock);
+  }
+  release(&ptable.lock);
+
+  return -1;
 }

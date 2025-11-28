@@ -107,6 +107,8 @@ extern int sys_setsighandler(void);
 extern int sys_sigreturn(void);
 extern int sys_waitpid(void);
 extern int sys_alarm(void);
+extern int sys_pause(void);
+extern int sys_sigprocmask(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -134,6 +136,8 @@ static int (*syscalls[])(void) = {
 [SYS_sigreturn] sys_sigreturn,
 [SYS_waitpid] sys_waitpid,
 [SYS_alarm]   sys_alarm,
+[SYS_pause]   sys_pause,
+[SYS_sigprocmask] sys_sigprocmask,
 };
 
 void

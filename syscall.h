@@ -24,3 +24,5 @@
 #define SYS_sigreturn 23
 #define SYS_waitpid 24
 #define SYS_alarm 25
+#define SYS_pause 26
+#define SYS_sigprocmask 27
